@@ -154,258 +154,431 @@ Access to this system is restricted to authorized personnel.
 </main>
 
 <script>
-const firebaseConfig={
- apiKey:"AIzaSyDaeNQF4qmW0vvwxUPp_NztnT0hoLzm1BQ",
- authDomain:"svls-289ee.firebaseapp.com",
- databaseURL:"https://svls-289ee-default-rtdb.firebaseio.com",
- projectId:"svls-289ee",
- storageBucket:"svls-289ee.firebasestorage.app",
- messagingSenderId:"500705386198",
- appId:"1:500705386198:web:96f189662bc2aa99cf7377",
- measurementId:"G-5TNBMQ2HN5"
+const firebaseConfig = {
+  apiKey: "AIzaSyDaeNQF4qmW0vvwxUPp_NztnT0hoLzm1BQ",
+  authDomain: "svls-289ee.firebaseapp.com",
+  databaseURL: "https://svls-289ee-default-rtdb.firebaseio.com",
+  projectId: "svls-289ee",
+  storageBucket: "svls-289ee.firebasestorage.app",
+  messagingSenderId: "500705386198",
+  appId: "1:500705386198:web:96f189662bc2aa99cf7377",
+  measurementId: "G-5TNBMQ2HN5"
 };
 
-let auth=null,rtdb=null,firestore=null;
-try{
- const app=firebase.apps.length?firebase.app():firebase.initializeApp(firebaseConfig);
- auth=firebase.auth(app);
- rtdb=firebase.database(app);
- firestore=firebase.firestore(app);
- firestore=firebase.firestore(app);
-}catch(e){console.error("Firebase initialization failed:",e)}
+let auth = null;
+let firestore = null;
 
-const loginForm=document.getElementById("loginForm");
-const registerForm=document.getElementById("registerForm");
-const loginTab=document.getElementById("loginTab");
-const registerTab=document.getElementById("registerTab");
-const title=document.getElementById("title");
-const message=document.getElementById("message");
-const loginButton=document.getElementById("loginButton");
-const registerButton=document.getElementById("registerButton");
+try {
+  const app = firebase.apps.length
+    ? firebase.app()
+    : firebase.initializeApp(firebaseConfig);
 
-function showLogin(){
- clearMessage();
- loginForm.classList.add("active");
- registerForm.classList.remove("active");
- loginTab.classList.add("active");
- registerTab.classList.remove("active");
- title.textContent="Sign In";
-}
-function showRegister(){
- clearMessage();
- loginForm.classList.remove("active");
- registerForm.classList.add("active");
- loginTab.classList.remove("active");
- registerTab.classList.add("active");
- title.textContent="Create Account";
-}
-let messageTimer=null;
-
-let messageTimer=null;
-
-function showMessage(text,type){
- if(messageTimer) clearTimeout(messageTimer);
- message.textContent=text;
- message.className="message show "+type;
-
- messageTimer=setTimeout(()=>{
-  message.textContent="";
-  message.className="message";
-  messageTimer=null;
- },3500);
+  auth = firebase.auth(app);
+  firestore = firebase.firestore(app);
+} catch (error) {
+  console.error("Firebase initialization failed:", error);
 }
 
-function clearMessage(){
- if(messageTimer) clearTimeout(messageTimer);
- messageTimer=null;
- message.textContent="";
- message.className="message";
+const loginForm = document.getElementById("loginForm");
+const registerForm = document.getElementById("registerForm");
+const loginTab = document.getElementById("loginTab");
+const registerTab = document.getElementById("registerTab");
+const title = document.getElementById("title");
+const message = document.getElementById("message");
+const loginButton = document.getElementById("loginButton");
+const registerButton = document.getElementById("registerButton");
+
+let messageTimer = null;
+
+function showMessage(text, type = "error") {
+  if (messageTimer) clearTimeout(messageTimer);
+
+  message.textContent = text;
+  message.className = "message show " + type;
+
+  messageTimer = setTimeout(() => {
+    message.textContent = "";
+    message.className = "message";
+    messageTimer = null;
+  }, 3500);
 }
 
-function togglePassword(id,btn){
- const input=document.getElementById(id);
- const visible=input.type==="text";
- input.type=visible?"password":"text";
- btn.textContent=visible?"SHOW":"HIDE";
-}
-function normalizeUsername(value){
- return String(value||"").trim().toLowerCase();
-}
-function validUsername(value){
- return /^[a-z0-9._-]{3,30}$/.test(value);
-}
-function authEmail(username){
- return normalizeUsername(username)+"@svls-289ee.local";
+function clearMessage() {
+  if (messageTimer) clearTimeout(messageTimer);
+  messageTimer = null;
+  message.textContent = "";
+  message.className = "message";
 }
 
-loginForm.addEventListener("submit",async e=>{
- e.preventDefault();
- clearMessage();
+function showLogin() {
+  clearMessage();
 
- if(!auth||!rtdb||!firestore){
-  showMessage("The database connection is unavailable. Please try again later.","error");
-  return;
- }
+  loginForm.classList.add("active");
+  registerForm.classList.remove("active");
 
- const username=normalizeUsername(document.getElementById("loginUsername").value);
- const password=document.getElementById("loginPassword").value;
+  loginTab.classList.add("active");
+  registerTab.classList.remove("active");
 
- loginButton.disabled=true;
- loginButton.textContent="Signing in…";
+  title.textContent = "Sign In";
+}
 
- try{
-  const usernameSnap=await rtdb.ref("usernames/"+username).once("value");
-  if(!usernameSnap.exists()) throw new Error("invalid");
+function showRegister() {
+  clearMessage();
 
-  const uid=usernameSnap.val();
-  const userSnap=await rtdb.ref("users/"+uid).once("value");
-  if(!userSnap.exists()) throw new Error("invalid");
+  loginForm.classList.remove("active");
+  registerForm.classList.add("active");
 
-  const data=userSnap.val();
+  loginTab.classList.remove("active");
+  registerTab.classList.add("active");
 
-  if(data.status!=="approved"){
-   showMessage(
-    data.status==="rejected"
-     ?"Your account registration was not approved. Please contact an administrator."
-     :"Your account is pending administrator approval. Please wait until an administrator approves your account.",
-    "pending"
-   );
-   return;
+  title.textContent = "Create Account";
+}
+
+function togglePassword(id, button) {
+  const input = document.getElementById(id);
+  const visible = input.type === "text";
+
+  input.type = visible ? "password" : "text";
+  button.textContent = visible ? "SHOW" : "HIDE";
+}
+
+function normalizeUsername(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function validUsername(value) {
+  return /^[a-z0-9._-]{3,30}$/.test(value);
+}
+
+/*
+  Firebase Auth needs an email identifier, but the user only enters
+  a username. This internal address is never shown as the user's
+  login credential.
+*/
+function authEmail(username) {
+  return normalizeUsername(username) + "@svls-289ee.local";
+}
+
+function setButtonLoading(button, text) {
+  button.disabled = true;
+  button.textContent = text;
+}
+
+function resetButton(button, text) {
+  button.disabled = false;
+  button.textContent = text;
+}
+
+
+/* =========================================================
+   LOGIN
+   Account lookup is now Firestore-only:
+   /medicalaccounts/{uid}
+
+   This means approval, role, name, designation and username
+   all come from the same place.
+========================================================= */
+
+loginForm.addEventListener("submit", async function (event) {
+  event.preventDefault();
+  clearMessage();
+
+  if (!auth || !firestore) {
+    showMessage(
+      "Firebase could not be initialized. Please check your Firebase configuration.",
+      "error"
+    );
+    return;
   }
 
-  await auth.signInWithEmailAndPassword(authEmail(username),password);
-
-  sessionStorage.setItem("svlsUsername",username);
-  sessionStorage.setItem("svlsUserRole",data.role||"user");
-  sessionStorage.setItem("svlsUserName",data.name||"");
-  sessionStorage.setItem("svlsUserDesignation",data.designation||"");
-
-  window.location.href="index.html";
-
- }catch(err){
-  console.error(err);
-  showMessage(
-   err.message==="invalid"||err.code==="auth/invalid-credential"||err.code==="auth/user-not-found"||err.code==="auth/wrong-password"
-    ?"Invalid username or password."
-    :"Unable to sign in. Please try again.",
-   "error"
+  const username = normalizeUsername(
+    document.getElementById("loginUsername").value
   );
- }finally{
-  loginButton.disabled=false;
-  loginButton.textContent="Login";
- }
+
+  const password = document.getElementById("loginPassword").value;
+
+  if (!username || !password) {
+    showMessage("Please enter your username and password.", "error");
+    return;
+  }
+
+  setButtonLoading(loginButton, "Signing in…");
+
+  try {
+    /*
+      Find the account by username in Firestore.
+    */
+    const accountQuery = await firestore
+      .collection("medicalaccounts")
+      .where("username", "==", username)
+      .limit(1)
+      .get();
+
+    if (accountQuery.empty) {
+      showMessage("Invalid username or password.", "error");
+      return;
+    }
+
+    const accountDoc = accountQuery.docs[0];
+    const account = accountDoc.data();
+
+    /*
+      Approval is checked before authentication.
+    */
+    if (account.status !== "approved") {
+      if (account.status === "rejected") {
+        showMessage(
+          "Your account was not approved. Please contact an administrator.",
+          "error"
+        );
+      } else {
+        showMessage(
+          "Your account is pending administrator approval.",
+          "pending"
+        );
+      }
+      return;
+    }
+
+    /*
+      Authenticate using the internal Firebase Auth identifier.
+    */
+    await auth.signInWithEmailAndPassword(
+      authEmail(username),
+      password
+    );
+
+    const uid = auth.currentUser.uid;
+
+    /*
+      Save the account information for the rest of the application.
+    */
+    sessionStorage.setItem("svlsUsername", username);
+    sessionStorage.setItem("svlsUserRole", account.role || "user");
+    sessionStorage.setItem("svlsUserName", account.name || "");
+    sessionStorage.setItem(
+      "svlsUserDesignation",
+      account.designation || ""
+    );
+    sessionStorage.setItem("svlsAuthUid", uid);
+
+    /*
+      Admins go to the admin panel.
+      Normal users go to the operation-record system.
+    */
+    if (account.role === "admin") {
+      window.location.href = "admin.html";
+    } else {
+      window.location.href = "index.html";
+    }
+
+  } catch (error) {
+    console.error("Login error:", error);
+
+    if (
+      error.code === "auth/invalid-credential" ||
+      error.code === "auth/user-not-found" ||
+      error.code === "auth/wrong-password"
+    ) {
+      showMessage("Invalid username or password.", "error");
+    } else if (
+      error.code === "permission-denied" ||
+      error.code === "failed-precondition"
+    ) {
+      showMessage(
+        "Firestore access is blocked by your database rules. Check the medicalaccounts rules.",
+        "error"
+      );
+    } else {
+      showMessage(
+        "Unable to sign in right now. Please try again.",
+        "error"
+      );
+    }
+
+  } finally {
+    resetButton(loginButton, "Login");
+  }
 });
 
-registerForm.addEventListener("submit",async e=>{
- e.preventDefault();
- clearMessage();
 
- if(!auth||!rtdb||!firestore){
-  showMessage("The database connection is unavailable. Please try again later.","error");
-  return;
- }
+/* =========================================================
+   REGISTER
+   Saves the account to Firestore collection:
+   medicalaccounts
 
- const name=document.getElementById("registerName").value.trim();
- const designation=document.getElementById("registerDesignation").value.trim();
- const username=normalizeUsername(document.getElementById("registerUsername").value);
- const password=document.getElementById("registerPassword").value;
+   Document ID = Firebase Auth UID
+========================================================= */
 
- if(!name||!designation||!username||!password){
-  showMessage("Please complete all registration fields.","error");
-  return;
- }
- if(!validUsername(username)){
-  showMessage("Username must be 3–30 characters and use only letters, numbers, periods, underscores, or hyphens.","error");
-  return;
- }
- if(password.length<6){
-  showMessage("Password must contain at least 6 characters.","error");
-  return;
- }
+registerForm.addEventListener("submit", async function (event) {
+  event.preventDefault();
+  clearMessage();
 
- registerButton.disabled=true;
- registerButton.textContent="Creating account…";
-
- let createdUser=null;
-
- try{
-  const usernameRef=rtdb.ref("usernames/"+username);
-  const existing=await usernameRef.once("value");
-
-  if(existing.exists()){
-   showMessage("That username is already registered. Please choose another username.","error");
-   return;
+  if (!auth || !firestore) {
+    showMessage(
+      "Firebase could not be initialized. Please check your Firebase configuration.",
+      "error"
+    );
+    return;
   }
 
-  const result=await auth.createUserWithEmailAndPassword(authEmail(username),password);
-  createdUser=result.user;
+  const name = document
+    .getElementById("registerName")
+    .value
+    .trim();
 
-  const uid=createdUser.uid;
+  const designation = document
+    .getElementById("registerDesignation")
+    .value
+    .trim();
 
-  await usernameRef.set(uid);
-
-  const accountData = {
-   uid: uid,
-   name: name,
-   designation: designation,
-   username: username,
-   role: "user",
-   status: "pending",
-   createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-   updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-  };
-
-  // Primary account record: Firestore /medicalaccounts/{uid}
-  await firestore.collection("medicalaccounts").doc(uid).set(accountData);
-
-  // Keep the RTDB profile in sync for the current login/approval flow.
-  await rtdb.ref("users/"+uid).set({
-   uid: uid,
-   name: name,
-   designation: designation,
-   username: username,
-   role: "user",
-   status: "pending",
-   createdAt: firebase.database.ServerValue.TIMESTAMP,
-   updatedAt: firebase.database.ServerValue.TIMESTAMP
-  });
-
-
-  await firestore.collection("medicalaccounts").doc(uid).set({
-   uid: uid,
-   name: name,
-   designation: designation,
-   username: username,
-   role: "user",
-   status: "pending",
-   createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-   updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-  });
-
-  await auth.signOut();
-  registerForm.reset();
-
-  showLogin();
-  showMessage("Registration successful. Your account is pending administrator approval.","pending");
-
- }catch(err){
-  console.error(err);
-
-  if(createdUser){
-   try{await createdUser.delete()}catch(cleanupError){console.warn(cleanupError)}
-  }
-
-  showMessage(
-   err.code==="auth/email-already-in-use"
-    ?"That username is already registered. Please choose another username."
-    :"Unable to complete registration. Please try again.",
-   "error"
+  const username = normalizeUsername(
+    document.getElementById("registerUsername").value
   );
- }finally{
-  registerButton.disabled=false;
-  registerButton.textContent="Create Account";
- }
+
+  const password = document
+    .getElementById("registerPassword")
+    .value;
+
+  if (!name || !designation || !username || !password) {
+    showMessage(
+      "Please complete all registration fields.",
+      "error"
+    );
+    return;
+  }
+
+  if (!validUsername(username)) {
+    showMessage(
+      "Username must be 3–30 characters and use only letters, numbers, periods, underscores, or hyphens.",
+      "error"
+    );
+    return;
+  }
+
+  if (password.length < 6) {
+    showMessage(
+      "Password must contain at least 6 characters.",
+      "error"
+    );
+    return;
+  }
+
+  setButtonLoading(registerButton, "Creating account…");
+
+  let createdUser = null;
+
+  try {
+    /*
+      Make username unique in Firestore.
+    */
+    const existing = await firestore
+      .collection("medicalaccounts")
+      .where("username", "==", username)
+      .limit(1)
+      .get();
+
+    if (!existing.empty) {
+      showMessage(
+        "That username is already registered. Please choose another username.",
+        "error"
+      );
+      return;
+    }
+
+    /*
+      Create Firebase Auth account.
+    */
+    const result = await auth.createUserWithEmailAndPassword(
+      authEmail(username),
+      password
+    );
+
+    createdUser = result.user;
+
+    /*
+      Store all account data in:
+      medicalaccounts/{uid}
+    */
+    await firestore
+      .collection("medicalaccounts")
+      .doc(createdUser.uid)
+      .set({
+        uid: createdUser.uid,
+        name: name,
+        designation: designation,
+        username: username,
+        role: "user",
+        status: "pending",
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+
+    /*
+      Do not leave the newly registered user signed in.
+    */
+    await auth.signOut();
+
+    registerForm.reset();
+
+    showLogin();
+
+    showMessage(
+      "Registration successful. Your account is pending administrator approval.",
+      "pending"
+    );
+
+  } catch (error) {
+    console.error("Registration error:", error);
+
+    /*
+      If Auth succeeded but Firestore failed, clean up the Auth account.
+    */
+    if (createdUser) {
+      try {
+        await createdUser.delete();
+      } catch (cleanupError) {
+        console.warn(
+          "Unable to clean up Firebase Auth account:",
+          cleanupError
+        );
+      }
+    }
+
+    if (error.code === "auth/email-already-in-use") {
+      showMessage(
+        "That username is already registered. Please choose another username.",
+        "error"
+      );
+    } else if (error.code === "auth/weak-password") {
+      showMessage(
+        "Password must contain at least 6 characters.",
+        "error"
+      );
+    } else if (
+      error.code === "permission-denied" ||
+      error.code === "failed-precondition"
+    ) {
+      showMessage(
+        "Registration was blocked by your Firestore security rules. Check access to medicalaccounts.",
+        "error"
+      );
+    } else {
+      showMessage(
+        "Unable to complete registration. Please try again.",
+        "error"
+      );
+    }
+
+  } finally {
+    resetButton(registerButton, "Create Account");
+  }
 });
+
+
+/* =========================================================
+   INITIAL VIEW
+========================================================= */
 
 showLogin();
 </script>
