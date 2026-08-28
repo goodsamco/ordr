@@ -1,0 +1,1439 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - Mlang Good Samaritan Hospital Co.</title>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+
+  <style>
+    :root {
+      --ink: #111;
+      --muted: #666;
+      --line: #d8d8d8;
+      --panel: #f7f7f7;
+      --bg: #ececec;
+      --white: #fff;
+      --danger: #8a1f1f;
+      --success: #2f6b45;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      min-height: 100%;
+    }
+
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+    }
+
+    /* ===== PAGE ===== */
+
+    .page {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 28px;
+    }
+
+    .auth-card {
+      width: min(470px, 100%);
+      background: #fff;
+      border: 1px solid #d8d8d8;
+      border-radius: 16px;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, .08);
+      overflow: hidden;
+    }
+
+    /* ===== HEADER ===== */
+
+    .auth-header {
+      padding: 24px 28px 21px;
+      border-bottom: 1px solid #e2e2e2;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .brand-mark {
+      width: 58px;
+      height: 58px;
+      border: 1px solid #cfcfcf;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #fafafa;
+      flex: 0 0 auto;
+    }
+
+    .brand-mark span {
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: .05em;
+    }
+
+    .brand-title {
+      font-family: "Times New Roman", Times, serif;
+      font-size: 21px;
+      font-weight: 700;
+      line-height: 1.15;
+    }
+
+    .brand-sub {
+      color: #555;
+      font-size: 12px;
+      margin-top: 4px;
+    }
+
+    /* ===== BODY ===== */
+
+    .auth-body {
+      padding: 28px 30px 30px;
+    }
+
+    .heading {
+      margin-bottom: 21px;
+    }
+
+    .heading h1 {
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 25px;
+      margin: 0 0 5px;
+      font-weight: 700;
+    }
+
+    .heading p {
+      margin: 0;
+      color: #666;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    /* ===== TABS ===== */
+
+    .tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 5px;
+      padding: 4px;
+      background: #f1f1f1;
+      border: 1px solid #dedede;
+      border-radius: 10px;
+      margin-bottom: 23px;
+    }
+
+    .tab {
+      border: 0;
+      border-radius: 7px;
+      padding: 10px 12px;
+      background: transparent;
+      color: #666;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: .2s ease;
+    }
+
+    .tab:hover {
+      color: #111;
+    }
+
+    .tab.active {
+      background: #111;
+      color: #fff;
+    }
+
+    /* ===== FORMS ===== */
+
+    .form {
+      display: none;
+    }
+
+    .form.active {
+      display: block;
+      animation: fadeIn .22s ease;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 15px;
+    }
+
+    .field label {
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .field input {
+      width: 100%;
+      border: 1px solid #cfcfcf;
+      border-radius: 9px;
+      padding: 11px 12px;
+      background: #fff;
+      color: #111;
+      font: inherit;
+      font-size: 14px;
+      outline: none;
+      transition:
+        border-color .2s ease,
+        box-shadow .2s ease,
+        transform .2s ease;
+    }
+
+    .field input:focus {
+      border-color: #111;
+      box-shadow: 0 0 0 3px rgba(0, 0, 0, .07);
+      transform: translateY(-1px);
+    }
+
+    .field input::placeholder {
+      color: #aaa;
+    }
+
+    .password-wrap {
+      position: relative;
+    }
+
+    .password-wrap input {
+      padding-right: 70px;
+    }
+
+    .show-password {
+      position: absolute;
+      right: 9px;
+      top: 50%;
+      transform: translateY(-50%);
+      border: 0;
+      background: transparent;
+      color: #666;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      padding: 5px;
+    }
+
+    .show-password:hover {
+      color: #111;
+    }
+
+    .help-text {
+      margin-top: -7px;
+      margin-bottom: 15px;
+      color: #777;
+      font-size: 11px;
+      line-height: 1.4;
+    }
+
+    /* ===== BUTTON ===== */
+
+    .submit-btn {
+      width: 100%;
+      border: 0;
+      border-radius: 9px;
+      padding: 12px 17px;
+      background: #111;
+      color: #fff;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition:
+        transform .2s ease,
+        box-shadow .2s ease,
+        opacity .2s ease;
+    }
+
+    .submit-btn:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 5px 14px rgba(0, 0, 0, .10);
+    }
+
+    .submit-btn:active:not(:disabled) {
+      transform: scale(.98);
+    }
+
+    .submit-btn:disabled {
+      cursor: wait;
+      opacity: .65;
+    }
+
+    /* ===== MESSAGE ===== */
+
+    .message {
+      display: none;
+      margin-bottom: 17px;
+      padding: 11px 12px;
+      border-radius: 9px;
+      font-size: 12px;
+      line-height: 1.45;
+      border: 1px solid transparent;
+    }
+
+    .message.show {
+      display: block;
+    }
+
+    .message.error {
+      background: #faf0f0;
+      color: var(--danger);
+      border-color: #ead0d0;
+    }
+
+    .message.success {
+      background: #f0f7f2;
+      color: var(--success);
+      border-color: #cfe2d5;
+    }
+
+    .message.pending {
+      background: #f7f5ed;
+      color: #6d5c28;
+      border-color: #e5ddc2;
+    }
+
+    /* ===== FOOTER ===== */
+
+    .auth-footer {
+      border-top: 1px solid #e2e2e2;
+      background: #fafafa;
+      padding: 15px 26px;
+      text-align: center;
+      color: #777;
+      font-size: 11px;
+      line-height: 1.5;
+    }
+
+    .auth-footer strong {
+      color: #555;
+    }
+
+    /* ===== LOADING ===== */
+
+    .loading {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .spinner {
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(255,255,255,.35);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
+
+    /* ===== MOBILE ===== */
+
+    @media (max-width: 600px) {
+      .page {
+        padding: 0;
+        align-items: stretch;
+      }
+
+      .auth-card {
+        width: 100%;
+        min-height: 100vh;
+        border-radius: 0;
+        border: 0;
+      }
+
+      .auth-header {
+        padding: 22px 22px 19px;
+      }
+
+      .auth-body {
+        padding: 24px 22px;
+      }
+
+      .brand-title {
+        font-size: 18px;
+      }
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(5px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        animation-duration: .01ms !important;
+        transition-duration: .01ms !important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <main class="page">
+
+    <section class="auth-card">
+
+      <!-- ===== BRAND HEADER ===== -->
+      <header class="auth-header">
+        <div class="brand">
+
+          <div class="brand-mark" aria-hidden="true">
+            <span>MGSH</span>
+          </div>
+
+          <div>
+            <div class="brand-title">
+              Mlang Good Samaritan Hospital Co.
+            </div>
+
+            <div class="brand-sub">
+              Operation Record System
+            </div>
+          </div>
+
+        </div>
+      </header>
+
+
+      <!-- ===== AUTH BODY ===== -->
+      <div class="auth-body">
+
+        <div class="heading">
+          <h1 id="formTitle">Sign In</h1>
+          <p id="formDescription">
+            Sign in to access the operation record system.
+          </p>
+        </div>
+
+
+        <!-- ===== MESSAGE ===== -->
+        <div
+          id="message"
+          class="message"
+          role="alert"
+          aria-live="polite">
+        </div>
+
+
+        <!-- ===== TABS ===== -->
+        <div class="tabs">
+          <button
+            type="button"
+            class="tab active"
+            id="loginTab"
+            onclick="showLogin()">
+            Login
+          </button>
+
+          <button
+            type="button"
+            class="tab"
+            id="registerTab"
+            onclick="showRegister()">
+            Register
+          </button>
+        </div>
+
+
+        <!-- =====================================================
+             LOGIN FORM
+        ====================================================== -->
+
+        <form
+          id="loginForm"
+          class="form active"
+          autocomplete="on">
+
+          <div class="field">
+            <label for="loginUsername">
+              Username
+            </label>
+
+            <input
+              id="loginUsername"
+              name="username"
+              type="text"
+              autocomplete="username"
+              placeholder="Enter your username"
+              required>
+          </div>
+
+
+          <div class="field">
+            <label for="loginPassword">
+              Password
+            </label>
+
+            <div class="password-wrap">
+              <input
+                id="loginPassword"
+                name="password"
+                type="password"
+                autocomplete="current-password"
+                placeholder="Enter your password"
+                required>
+
+              <button
+                type="button"
+                class="show-password"
+                onclick="togglePassword('loginPassword', this)">
+                SHOW
+              </button>
+            </div>
+          </div>
+
+
+          <button
+            type="submit"
+            class="submit-btn"
+            id="loginButton">
+            Login
+          </button>
+
+        </form>
+
+
+        <!-- =====================================================
+             REGISTER FORM
+        ====================================================== -->
+
+        <form
+          id="registerForm"
+          class="form"
+          autocomplete="on">
+
+          <div class="field">
+            <label for="registerName">
+              Name
+            </label>
+
+            <input
+              id="registerName"
+              name="name"
+              type="text"
+              autocomplete="name"
+              placeholder="Enter your full name"
+              required>
+          </div>
+
+
+          <div class="field">
+            <label for="registerDesignation">
+              Designation
+            </label>
+
+            <input
+              id="registerDesignation"
+              name="designation"
+              type="text"
+              placeholder="Enter your designation"
+              required>
+          </div>
+
+
+          <div class="field">
+            <label for="registerUsername">
+              Username
+            </label>
+
+            <input
+              id="registerUsername"
+              name="username"
+              type="text"
+              autocomplete="username"
+              placeholder="Choose a username"
+              minlength="3"
+              maxlength="30"
+              required>
+          </div>
+
+          <div class="help-text">
+            Username may contain letters, numbers, periods, underscores,
+            and hyphens.
+          </div>
+
+
+          <div class="field">
+            <label for="registerPassword">
+              Password
+            </label>
+
+            <div class="password-wrap">
+              <input
+                id="registerPassword"
+                name="password"
+                type="password"
+                autocomplete="new-password"
+                placeholder="Create a password"
+                minlength="6"
+                required>
+
+              <button
+                type="button"
+                class="show-password"
+                onclick="togglePassword('registerPassword', this)">
+                SHOW
+              </button>
+            </div>
+          </div>
+
+
+          <button
+            type="submit"
+            class="submit-btn"
+            id="registerButton">
+            Create Account
+          </button>
+
+        </form>
+
+      </div>
+
+
+      <!-- ===== FOOTER ===== -->
+      <footer class="auth-footer">
+        <strong>Mlang Good Samaritan Hospital Co.</strong><br>
+        Access to this system is restricted to authorized personnel.
+      </footer>
+
+    </section>
+
+  </main>
+
+
+  <script>
+    /* =========================================================
+       FIREBASE CONFIGURATION
+       Same Firebase project/database used by the existing system.
+    ========================================================== */
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDaeNQF4qmW0vvwxUPp_NztnT0hoLzm1BQ",
+      authDomain: "svls-289ee.firebaseapp.com",
+      databaseURL: "https://svls-289ee-default-rtdb.firebaseio.com",
+      projectId: "svls-289ee",
+      storageBucket: "svls-289ee.firebasestorage.app",
+      messagingSenderId: "500705386198",
+      appId: "1:500705386198:web:96f189662bc2aa99cf7377",
+      measurementId: "G-5TNBMQ2HN5"
+    };
+
+
+    /* =========================================================
+       FIREBASE INITIALIZATION
+    ========================================================== */
+
+    let auth = null;
+    let rtdb = null;
+
+    try {
+
+      const app =
+        firebase.apps.length
+          ? firebase.app()
+          : firebase.initializeApp(firebaseConfig);
+
+      auth = firebase.auth(app);
+      rtdb = firebase.database(app);
+
+    } catch (error) {
+
+      console.error("Firebase initialization failed:", error);
+
+    }
+
+
+    /* =========================================================
+       DOM
+    ========================================================== */
+
+    const loginForm = document.getElementById("loginForm");
+    const registerForm = document.getElementById("registerForm");
+
+    const loginTab = document.getElementById("loginTab");
+    const registerTab = document.getElementById("registerTab");
+
+    const formTitle = document.getElementById("formTitle");
+    const formDescription = document.getElementById("formDescription");
+
+    const message = document.getElementById("message");
+
+    const loginButton = document.getElementById("loginButton");
+    const registerButton = document.getElementById("registerButton");
+
+
+    /* =========================================================
+       FORM SWITCHING
+    ========================================================== */
+
+    function showLogin() {
+
+      clearMessage();
+
+      loginForm.classList.add("active");
+      registerForm.classList.remove("active");
+
+      loginTab.classList.add("active");
+      registerTab.classList.remove("active");
+
+      formTitle.textContent = "Sign In";
+
+      formDescription.textContent =
+        "Sign in to access the operation record system.";
+
+    }
+
+
+    function showRegister() {
+
+      clearMessage();
+
+      loginForm.classList.remove("active");
+      registerForm.classList.add("active");
+
+      loginTab.classList.remove("active");
+      registerTab.classList.add("active");
+
+      formTitle.textContent = "Create Account";
+
+      formDescription.textContent =
+        "Register an account. Administrator approval is required before access.";
+
+    }
+
+
+    /* =========================================================
+       MESSAGE HANDLING
+    ========================================================== */
+
+    function showMessage(text, type = "error") {
+
+      message.textContent = text;
+
+      message.className =
+        "message show " + type;
+
+    }
+
+
+    function clearMessage() {
+
+      message.textContent = "";
+
+      message.className =
+        "message";
+
+    }
+
+
+    /* =========================================================
+       PASSWORD VISIBILITY
+    ========================================================== */
+
+    function togglePassword(inputId, button) {
+
+      const input =
+        document.getElementById(inputId);
+
+      if (input.type === "password") {
+
+        input.type = "text";
+        button.textContent = "HIDE";
+
+      } else {
+
+        input.type = "password";
+        button.textContent = "SHOW";
+
+      }
+
+    }
+
+
+    /* =========================================================
+       USERNAME NORMALIZATION
+    ========================================================== */
+
+    function normalizeUsername(username) {
+
+      return String(username || "")
+        .trim()
+        .toLowerCase();
+
+    }
+
+
+    function isValidUsername(username) {
+
+      return /^[a-zA-Z0-9._-]{3,30}$/.test(username);
+
+    }
+
+
+    /*
+      Firebase Authentication requires an email address.
+
+      We do NOT ask the user for an email address.
+
+      Instead, each username gets a private internal Firebase
+      authentication email.
+
+      Example:
+
+        username: doctor01
+
+        Firebase Auth email:
+        doctor01@svls-289ee.local
+
+      This is only an authentication identifier.
+    */
+
+    function usernameToAuthEmail(username) {
+
+      return normalizeUsername(username) +
+        "@svls-289ee.local";
+
+    }
+
+
+    /* =========================================================
+       LOGIN
+    ========================================================== */
+
+    loginForm.addEventListener("submit", async function(event) {
+
+      event.preventDefault();
+
+      clearMessage();
+
+      if (!auth || !rtdb) {
+
+        showMessage(
+          "The database connection is unavailable. Please try again later.",
+          "error"
+        );
+
+        return;
+      }
+
+
+      const username =
+        normalizeUsername(
+          document.getElementById("loginUsername").value
+        );
+
+      const password =
+        document.getElementById("loginPassword").value;
+
+
+      if (!username || !password) {
+
+        showMessage(
+          "Please enter your username and password.",
+          "error"
+        );
+
+        return;
+      }
+
+
+      loginButton.disabled = true;
+
+      loginButton.innerHTML =
+        '<span class="loading">' +
+        '<span class="spinner"></span>' +
+        'Signing in…' +
+        '</span>';
+
+
+      try {
+
+        /*
+          Look up the username first.
+
+          usernames/{username} = uid
+        */
+
+        const usernameSnapshot =
+          await rtdb
+            .ref("usernames/" + username)
+            .once("value");
+
+
+        if (!usernameSnapshot.exists()) {
+
+          throw new Error("invalid-login");
+
+        }
+
+
+        const uid =
+          usernameSnapshot.val();
+
+
+        /*
+          Retrieve the user's account profile.
+        */
+
+        const userSnapshot =
+          await rtdb
+            .ref("users/" + uid)
+            .once("value");
+
+
+        if (!userSnapshot.exists()) {
+
+          throw new Error("invalid-login");
+
+        }
+
+
+        const userData =
+          userSnapshot.val();
+
+
+        /*
+          Check approval BEFORE authentication.
+
+          This prevents pending users from entering the system.
+        */
+
+        if (userData.status !== "approved") {
+
+          if (userData.status === "rejected") {
+
+            showMessage(
+              "Your account registration was not approved. Please contact an administrator.",
+              "error"
+            );
+
+          } else {
+
+            showMessage(
+              "Your account is pending administrator approval. You will be able to log in once your account has been approved.",
+              "pending"
+            );
+
+          }
+
+          return;
+
+        }
+
+
+        /*
+          Authenticate with Firebase Auth.
+        */
+
+        await auth.signInWithEmailAndPassword(
+          usernameToAuthEmail(username),
+          password
+        );
+
+
+        /*
+          Store basic session information.
+        */
+
+        sessionStorage.setItem(
+          "svlsUsername",
+          username
+        );
+
+        sessionStorage.setItem(
+          "svlsUserRole",
+          userData.role || "user"
+        );
+
+        sessionStorage.setItem(
+          "svlsUserName",
+          userData.name || ""
+        );
+
+        sessionStorage.setItem(
+          "svlsUserDesignation",
+          userData.designation || ""
+        );
+
+
+        /*
+          Redirect to the existing application.
+
+          index.html is the existing operation-record system.
+        */
+
+        window.location.href = "index.html";
+
+
+      } catch (error) {
+
+        console.error("Login failed:", error);
+
+
+        if (
+          error.message === "invalid-login" ||
+          error.code === "auth/user-not-found" ||
+          error.code === "auth/wrong-password" ||
+          error.code === "auth/invalid-credential"
+        ) {
+
+          showMessage(
+            "Invalid username or password.",
+            "error"
+          );
+
+        } else {
+
+          showMessage(
+            "Unable to sign in right now. Please check the database connection and try again.",
+            "error"
+          );
+
+        }
+
+      } finally {
+
+        loginButton.disabled = false;
+        loginButton.textContent = "Login";
+
+      }
+
+    });
+
+
+    /* =========================================================
+       REGISTER
+    ========================================================== */
+
+    registerForm.addEventListener("submit", async function(event) {
+
+      event.preventDefault();
+
+      clearMessage();
+
+      if (!auth || !rtdb) {
+
+        showMessage(
+          "The database connection is unavailable. Please try again later.",
+          "error"
+        );
+
+        return;
+      }
+
+
+      const name =
+        document.getElementById("registerName")
+          .value
+          .trim();
+
+      const designation =
+        document.getElementById("registerDesignation")
+          .value
+          .trim();
+
+      const username =
+        normalizeUsername(
+          document.getElementById("registerUsername")
+            .value
+        );
+
+      const password =
+        document.getElementById("registerPassword")
+          .value;
+
+
+      /* ===== VALIDATION ===== */
+
+      if (!name || !designation || !username || !password) {
+
+        showMessage(
+          "Please complete all registration fields.",
+          "error"
+        );
+
+        return;
+      }
+
+
+      if (!isValidUsername(username)) {
+
+        showMessage(
+          "Username must be 3–30 characters and may contain only letters, numbers, periods, underscores, and hyphens.",
+          "error"
+        );
+
+        return;
+      }
+
+
+      if (password.length < 6) {
+
+        showMessage(
+          "Password must contain at least 6 characters.",
+          "error"
+        );
+
+        return;
+      }
+
+
+      registerButton.disabled = true;
+
+      registerButton.innerHTML =
+        '<span class="loading">' +
+        '<span class="spinner"></span>' +
+        'Creating account…' +
+        '</span>';
+
+
+      let createdUser = null;
+
+
+      try {
+
+        /*
+          ======================================================
+          STEP 1
+          Make sure the username does not already exist.
+          ======================================================
+        */
+
+        const usernameRef =
+          rtdb.ref("usernames/" + username);
+
+
+        const usernameSnapshot =
+          await usernameRef.once("value");
+
+
+        if (usernameSnapshot.exists()) {
+
+          showMessage(
+            "That username is already registered. Please choose another username.",
+            "error"
+          );
+
+          return;
+
+        }
+
+
+        /*
+          ======================================================
+          STEP 2
+          Create Firebase Authentication account.
+          ======================================================
+        */
+
+        const authResult =
+          await auth.createUserWithEmailAndPassword(
+            usernameToAuthEmail(username),
+            password
+          );
+
+
+        createdUser =
+          authResult.user;
+
+
+        const uid =
+          createdUser.uid;
+
+
+        /*
+          ======================================================
+          STEP 3
+          Create the user profile.
+
+          IMPORTANT:
+          Password is intentionally NOT stored here.
+
+          Firebase Authentication handles the password.
+          ======================================================
+        */
+
+        const userData = {
+
+          name: name,
+
+          designation: designation,
+
+          username: username,
+
+          role: "user",
+
+          status: "pending",
+
+          createdAt: firebase.database.ServerValue.TIMESTAMP,
+
+          updatedAt: firebase.database.ServerValue.TIMESTAMP
+
+        };
+
+
+        /*
+          ======================================================
+          STEP 4
+          Store username → UID mapping.
+          ======================================================
+        */
+
+        await usernameRef.set(uid);
+
+
+        /*
+          ======================================================
+          STEP 5
+          Store user profile.
+          ======================================================
+        */
+
+        await rtdb
+          .ref("users/" + uid)
+          .set(userData);
+
+
+        /*
+          ======================================================
+          STEP 6
+          Sign the new user out immediately.
+
+          Registration does NOT automatically grant access.
+          ======================================================
+        */
+
+        await auth.signOut();
+
+
+        /*
+          ======================================================
+          SUCCESS
+          ======================================================
+        */
+
+        registerForm.reset();
+
+        showMessage(
+          "Registration successful. Your account is now pending administrator approval. You can log in after an administrator approves your account.",
+          "pending"
+        );
+
+
+        /*
+          Switch back to login after a short delay.
+        */
+
+        setTimeout(function() {
+
+          showLogin();
+
+          showMessage(
+            "Your account has been created and is waiting for administrator approval.",
+            "pending"
+          );
+
+        }, 1800);
+
+
+      } catch (error) {
+
+        console.error("Registration failed:", error);
+
+
+        /*
+          If Firebase Auth succeeded but database setup failed,
+          attempt to clean up the newly-created Auth account.
+        */
+
+        if (createdUser) {
+
+          try {
+
+            await createdUser.delete();
+
+          } catch (cleanupError) {
+
+            console.warn(
+              "Could not automatically clean up Auth account:",
+              cleanupError
+            );
+
+          }
+
+        }
+
+
+        if (error.code === "auth/email-already-in-use") {
+
+          showMessage(
+            "That username is already registered. Please choose another username.",
+            "error"
+          );
+
+        } else if (error.code === "auth/weak-password") {
+
+          showMessage(
+            "The password is too weak. Please use at least 6 characters.",
+            "error"
+          );
+
+        } else {
+
+          showMessage(
+            "Unable to complete registration. Please check the database connection and try again.",
+            "error"
+          );
+
+        }
+
+      } finally {
+
+        registerButton.disabled = false;
+        registerButton.textContent = "Create Account";
+
+      }
+
+    });
+
+
+    /* =========================================================
+       AUTH STATE CHECK
+       
+       If someone is already authenticated, do not leave them
+       stranded on the login page.
+    ========================================================== */
+
+    if (auth) {
+
+      auth.onAuthStateChanged(async function(user) {
+
+        if (!user) {
+          return;
+        }
+
+
+        try {
+
+          const snapshot =
+            await rtdb
+              .ref("users/" + user.uid)
+              .once("value");
+
+
+          if (!snapshot.exists()) {
+
+            await auth.signOut();
+            return;
+
+          }
+
+
+          const userData =
+            snapshot.val();
+
+
+          /*
+            Only approved accounts may continue.
+          */
+
+          if (userData.status !== "approved") {
+
+            await auth.signOut();
+
+            return;
+
+          }
+
+
+          /*
+            Existing approved session.
+          */
+
+          sessionStorage.setItem(
+            "svlsUsername",
+            userData.username || ""
+          );
+
+          sessionStorage.setItem(
+            "svlsUserRole",
+            userData.role || "user"
+          );
+
+          sessionStorage.setItem(
+            "svlsUserName",
+            userData.name || ""
+          );
+
+          sessionStorage.setItem(
+            "svlsUserDesignation",
+            userData.designation || ""
+          );
+
+
+          /*
+            Avoid redirecting during the normal registration flow.
+            The login handler itself performs the redirect.
+          */
+
+        } catch (error) {
+
+          console.error(
+            "Authentication state check failed:",
+            error
+          );
+
+        }
+
+      });
+
+    }
+
+
+    /* =========================================================
+       INITIAL STATE
+    ========================================================== */
+
+    showLogin();
+
+  </script>
+
+</body>
+</html>
+```
