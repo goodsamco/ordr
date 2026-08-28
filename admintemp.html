@@ -249,14 +249,25 @@ async function makeAdmin(uid){
 
    There may only be one administrator.
  */
- if(accounts.some(a=>a.role==="admin"&&a.uid!==currentAdminUid)){
+ const alreadyAdmin=accounts.find(a=>
+  a.role==="admin" &&
+  a.status==="approved" &&
+  a.uid!==uid
+ );
+
+ if(alreadyAdmin){
   showMessage("An administrator already exists. You cannot create another administrator.","error");
   return;
  }
 
+ const firstAdmin=!accounts.some(a=>
+  a.role==="admin" && a.status==="approved"
+ );
+
  if(!confirm(
-   `Make "${target.name||target.username}" the administrator?\n\n`+
-   `This will approve the account and assign the admin role.`
+   firstAdmin
+    ? `Make "${target.name||target.username}" the FIRST administrator?\n\nThis will approve the account and assign the admin role.`
+    : `Make "${target.name||target.username}" the administrator?\n\nThis will approve the account and assign the admin role.`
  ))return;
 
  try{
@@ -312,59 +323,108 @@ document.getElementById("logoutBtn").addEventListener("click",async()=>{
 /*
   Only an already-approved administrator can open this page.
 */
-auth.onAuthStateChanged(async user=>{
- if(!user){
-  window.location.href="login.html";
-  return;
- }
-
- try{
-  const ownDoc=await db.collection("medicalaccounts").doc(user.uid).get();
-
-  if(!ownDoc.exists){
-   await auth.signOut();
-   window.location.href="login.html";
-   return;
-  }
-
-  const own=ownDoc.data();
-
-  if(own.role!=="admin"||own.status!=="approved"){
-   alert("Administrator access is required.");
-   await auth.signOut();
-   window.location.href="login.html";
-   return;
-  }
-
-  currentAdminUid=user.uid;
-
-  /*
-    Load ALL accounts from medicalaccounts.
-  */
+async function loadAccounts(){
   const snapshot=await db.collection("medicalaccounts").get();
 
   accounts=snapshot.docs.map(doc=>({
-   uid:doc.id,
-   ...doc.data()
+    uid:doc.id,
+    ...doc.data()
   }));
 
-  /*
-    Safety check: if the database already contains more than one
-    admin, do not silently change them. Display them as they are.
-  */
   render();
+}
 
- }catch(error){
-  console.error("Admin page error:",error);
+async function bootstrapOrCheckAccess(){
+  try{
+    /*
+      FIRST-ADMIN BOOTSTRAP:
+      If there is no admin account yet, admintemp.html becomes the
+      initial setup screen. No login is required because there is
+      nobody who can log in yet.
 
-  accountsBody.innerHTML=
-   '<tr><td colspan="6" class="empty">Unable to load accounts. Check your Firestore security rules.</td></tr>';
+      Once an admin exists, the page immediately returns to requiring
+      an authenticated approved admin.
+    */
+    const snapshot=await db.collection("medicalaccounts").get();
 
-  showMessage(
-   "Unable to load medical accounts from Firestore.",
-   "error"
-  );
- }
+    accounts=snapshot.docs.map(doc=>({
+      uid:doc.id,
+      ...doc.data()
+    }));
+
+    const existingAdmin=accounts.find(a=>
+      a.role==="admin" && a.status==="approved"
+    );
+
+    if(!existingAdmin){
+      currentAdminUid=null;
+
+      document.querySelector("h1").textContent="Initial Admin Setup";
+      document.querySelector(".desc").textContent=
+        "No administrator exists yet. Choose one registered account to become the first administrator.";
+
+      showMessage(
+        "Setup mode: choose one registered account to create the first administrator.",
+        "info"
+      );
+
+      render();
+      return;
+    }
+
+    /*
+      Normal mode: an administrator already exists, so require the
+      current session to belong to that administrator.
+    */
+    auth.onAuthStateChanged(async user=>{
+      if(!user){
+        window.location.href="login.html";
+        return;
+      }
+
+      try{
+        const ownDoc=await db.collection("medicalaccounts").doc(user.uid).get();
+
+        if(!ownDoc.exists){
+          await auth.signOut();
+          window.location.href="login.html";
+          return;
+        }
+
+        const own=ownDoc.data();
+
+        if(own.role!=="admin"||own.status!=="approved"){
+          alert("Administrator access is required.");
+          await auth.signOut();
+          window.location.href="login.html";
+          return;
+        }
+
+        currentAdminUid=user.uid;
+
+        await loadAccounts();
+
+      }catch(error){
+        console.error(error);
+        accountsBody.innerHTML=
+          '<tr><td colspan="6" class="empty">Unable to verify administrator access.</td></tr>';
+      }
+    });
+
+  }catch(error){
+    console.error("Initial admin setup error:",error);
+
+    accountsBody.innerHTML=
+      '<tr><td colspan="6" class="empty">Unable to load accounts. Check your Firestore security rules.</td></tr>';
+
+    showMessage(
+      "The initial setup needs Firestore permission to read medicalaccounts.",
+      "error"
+    );
+  }
+}
+
+bootstrapOrCheckAccess();
 });
 </script>
 </body>
