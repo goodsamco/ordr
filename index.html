@@ -2140,29 +2140,43 @@ showStep(0);
 
   window.editRecord=function(id){ loadRecord(id); };
 
-  window.deleteRecord=async function(id, patientName){
-    const confirmed=window.confirm('Delete the record for '+patientName+'?\n\nThis cannot be undone.');
-    if(!confirmed) return;
-    try{
-      // Delete from Firestore first when online.
-      if(db){
-        const user=await ensureAuth();
-        if(!user) throw new Error('Firebase authentication unavailable');
-        await db.collection('operationRecords').doc(String(id)).delete();
+window.deleteRecord = async function(id, patientName) {
+  const confirmed = window.confirm(
+    'Delete the record for ' + patientName + '?\n\nThis cannot be undone.'
+  );
+  if (!confirmed) return;
+
+  try {
+    // Remove local copy first
+    localStorage.removeItem('operationRecord:' + id);
+
+    // Delete online copy if authenticated
+    if (db) {
+      const user = await ensureAuth();
+      if (user) {
+        await db.collection('operationRecords')
+          .doc(String(id))
+          .delete();
       }
-      // Also clear the local copy so deleted records cannot reappear in fallback mode.
-      localStorage.removeItem('operationRecord:'+id);
-      if(window.__recordId===id){
-        window.__recordId='';
-        sessionStorage.removeItem('mlangOperationRecordId');
-      }
-      status.textContent='Record deleted.';
-      await loadRecords();
-    }catch(e){
-      console.error('Delete failed',e);
-      window.alert('Unable to delete this record. Please check the database connection.');
     }
-  };
+
+    if (window.__recordId === id) {
+      window.__recordId = '';
+      sessionStorage.removeItem('mlangOperationRecordId');
+      sessionStorage.removeItem('mlangOperationRecord');
+    }
+
+    status.textContent = 'Record deleted.';
+    await loadRecords();
+
+  } catch (e) {
+    console.error('Delete failed', e);
+    await loadRecords().catch(() => {});
+    window.alert(
+      'Unable to delete the online record. The local copy has been removed.'
+    );
+  }
+};
 
   window.saveRecordToDatabase=async function(){
     const btn=document.getElementById('saveBtn');
