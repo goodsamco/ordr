@@ -1705,7 +1705,10 @@ function buildPrint() {
 }
 
 function buildPreview() {
-  saveState();
+  // Preview must always be generated from the live form currently on screen.
+  // Do not load or reuse sessionStorage/localStorage here, otherwise a new
+  // record can inherit the previous record's preview.
+  compileCurrentDetails();
   buildPrint();
 
   const host = document.getElementById("previewHost");
@@ -2095,17 +2098,32 @@ showStep(0);
       await updateRecordOnNext();
       if(step < totalSteps-1){
         showStep(step+1);
-        if(step===totalSteps-1) buildPreview();
+        if(step===totalSteps-1){
+          // buildPreview() reads the live form, so it cannot use stale cached data.
+          buildPreview();
+        }
       }
     }finally{ if(btn) btn.disabled=false; }
   };
 
   window.startNewRecord=function(){
-    baseIds.forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-    materialCounts={drug:3,suture:3,sponge:3}; renderMaterials();
-    window.__recordId=''; window.__recordColorTag=''; sessionStorage.removeItem('mlangOperationRecordId');
+    // New record = blank live form. Never restore another record's cached state.
+    window.__recordId='';
+    window.__recordColorTag='';
+    window.__recordSavedAt=null;
+    sessionStorage.removeItem('mlangOperationRecordId');
     sessionStorage.removeItem('mlangOperationRecord');
-    appView.style.display='flex'; home.style.display='none';
+
+    baseIds.forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+    materialCounts={drug:3,suture:3,sponge:3};
+    renderMaterials();
+
+    // Clear any previously rendered preview before entering the new record.
+    const previewHost=document.getElementById('previewHost');
+    if(previewHost) previewHost.innerHTML='';
+
+    appView.style.display='flex';
+    home.style.display='none';
     showStep(0);
   };
 
@@ -2140,43 +2158,45 @@ showStep(0);
 
   window.editRecord=function(id){ loadRecord(id); };
 
-window.deleteRecord = async function(id, patientName) {
-  const confirmed = window.confirm(
-    'Delete the record for ' + patientName + '?\n\nThis cannot be undone.'
-  );
-  if (!confirmed) return;
+  window.deleteRecord=async function(id, patientName){
+    const confirmed=window.confirm('Delete the record for '+patientName+'?\n\nThis cannot be undone.');
+    if(!confirmed) return;
 
-  try {
-    // Remove local copy first
-    localStorage.removeItem('operationRecord:' + id);
+    try{
+      // Always remove the local copy first.
+      localStorage.removeItem('operationRecord:'+id);
 
-    // Delete online copy if authenticated
-    if (db) {
-      const user = await ensureAuth();
-      if (user) {
-        await db.collection('operationRecords')
-          .doc(String(id))
-          .delete();
+      // Delete the online copy only when Firebase is actually authenticated.
+      if(db){
+        const user=await ensureAuth();
+        if(user){
+          await db.collection('operationRecords').doc(String(id)).delete();
+        } else {
+          console.warn('Firebase authentication unavailable; local record deleted.');
+        }
       }
+
+      if(window.__recordId===id){
+        window.__recordId='';
+        sessionStorage.removeItem('mlangOperationRecordId');
+        sessionStorage.removeItem('mlangOperationRecord');
+      }
+
+      // Immediately remove the card from the current UI.
+      const card=[...document.querySelectorAll('.record-card')].find(el =>
+        el.querySelector('.delete')?.dataset.recordId === String(id)
+      );
+      if(card) card.remove();
+
+      status.textContent='Record deleted.';
+      await loadRecords();
+    }catch(e){
+      console.error('Delete failed',e);
+      // If the local copy was removed, refresh so the UI reflects that deletion.
+      await loadRecords().catch(()=>{});
+      window.alert('Unable to delete the online record. The local copy has been removed.');
     }
-
-    if (window.__recordId === id) {
-      window.__recordId = '';
-      sessionStorage.removeItem('mlangOperationRecordId');
-      sessionStorage.removeItem('mlangOperationRecord');
-    }
-
-    status.textContent = 'Record deleted.';
-    await loadRecords();
-
-  } catch (e) {
-    console.error('Delete failed', e);
-    await loadRecords().catch(() => {});
-    window.alert(
-      'Unable to delete the online record. The local copy has been removed.'
-    );
-  }
-};
+  };
 
   window.saveRecordToDatabase=async function(){
     const btn=document.getElementById('saveBtn');
@@ -2305,7 +2325,13 @@ window.deleteRecord = async function(id, patientName) {
       card.setAttribute('tabindex','0');
       card.setAttribute('role','button');
       card.setAttribute('aria-label','Open record for '+(r.patientName||r.name||'this patient'));
-      card.querySelector('.delete').addEventListener('click',(ev)=>{ ev.stopPropagation(); deleteRecord(r.id, r.patientName||r.name||'this patient'); });
+      const deleteBtn=card.querySelector('.delete');
+      deleteBtn.dataset.recordId=String(r.id);
+      deleteBtn.addEventListener('click',(ev)=>{
+        ev.preventDefault();
+        ev.stopPropagation();
+        deleteRecord(r.id, r.patientName||r.name||'this patient');
+      });
       grid.appendChild(card);
     });
   }
